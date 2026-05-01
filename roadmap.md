@@ -188,45 +188,46 @@ M1 recognition pipeline.
 
 ---
 
-## Milestone 4 — GUI iteration
-
-> **Open question — needs Craig's input.** "Have a GUI" was on the original
-> list but Jeff already has a SwiftUI window. The plan below assumes you
-> meant *richer in-window presentation* of the things M1–M3 unlock. Override
-> if you actually wanted a different surface (menu-bar HUD, floating
-> always-on-top overlay, separate dashboard window, …).
+## Milestone 4 — Basic chat GUI
 
 ### Goal
 
-The window stops being a debug surface and becomes the daily-driver
-interaction surface for everything M1–M3 unlocked.
+Reshape the existing window into a chat-style transcript that renders
+agent activity (tool calls, approvals) and recognition events inline. No
+sidebars, no timeline, no separate dashboard — just a clean conversation
+view that's pleasant to use day-to-day. Anything richer is a later
+milestone if it earns its way in.
 
 ### Features
 
-- **Chat-style transcript.** Tool call cards inline, recognition events as
-  small badges in the gutter, scene-change markers as subtle horizontal
-  rules.
-- **Gallery manager.** Browse / rename / delete / re-enroll people and
-  things. Drag-and-drop import.
-- **Activity timeline.** Sidebar showing the last day of recognition events,
-  agent runs, and audio segments. Clickable to jump to that point in the
-  transcript.
-- **Approval surfaces.** First-class UI for M2 approval prompts (banner
-  treatment + keyboard-driven, not just inline cards).
-- **Settings expansion.** New tabs for Gallery, Agent, and Perception.
+- **Chat-style transcript.** User and Jeff turns rendered as bubbles;
+  scrollback with sensible spacing.
+- **Inline tool call cards.** Tool name, args, result preview, status
+  badge, elapsed time. Long results collapsed by default.
+- **Inline approval cards.** M2 approval prompts render in-line in the
+  transcript with Approve / Deny buttons + keyboard shortcuts.
+- **Inline recognition badges.** When the M3 loop or a turn surfaces a
+  recognition event ("Sam entered frame"), it shows as a small
+  contextual marker in the transcript.
+- **Gallery management surface.** A simple list view in Settings →
+  Gallery: label, thumbnail, kind, delete. Drag-and-drop add.
 
 ### Acceptance criteria
 
-- Tool calls render inline regardless of length (long results collapsed
-  with expand-on-click).
-- Gallery edits take effect without restarting the app.
-- Approval can be triggered, approved, and denied via mouse and keyboard.
-- Activity timeline survives app quit (depends on the encryption sweep
-  below if you want it on disk).
+- Tool calls always render inline; long results collapsible.
+- Approvals can be triggered, approved, and denied via mouse and
+  keyboard (⌘⏎ approve, ⌘⌫ deny).
+- Recognition events appear in the transcript at the moment they fire.
+- Gallery edits in Settings take effect without restarting the app.
 
 ### Depends on
 
-M1, M2, M3 — this milestone is mostly UI assembly over the foundations.
+M1, M2, M3 — this milestone is UI assembly over the foundations.
+
+### Out of scope (deferred until earned)
+
+Activity timeline sidebar, dashboard window, menu-bar HUD, floating
+always-on-top overlay, multi-window support.
 
 ---
 
