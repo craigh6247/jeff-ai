@@ -22,56 +22,72 @@ The non-UI logic in `Jeff/Models` and `Jeff/Services` is exposed as the
 references the same source tree and adds the SwiftUI views, Info.plist, and
 entitlements.
 
-## Build the app (one-time setup on macOS)
+## Setup status — what's done and what you still have to do
 
-1. Open Xcode 15+, **File → New → Project → macOS App**, name it `Jeff`,
-   interface SwiftUI, language Swift, organization identifier of your choice.
-2. Delete the auto-generated `JeffApp.swift` and `ContentView.swift`.
-3. Right-click the project, **Add Files to "Jeff"…**, select the `Jeff/`
-   folder from this repo and add it as folder reference (or by groups).
-4. In **Signing & Capabilities**:
-   - Set your team.
-   - Add capabilities: **App Sandbox** (with **Camera**, **Audio Input**,
-     **User Selected File**) and **Hardened Runtime**.
-   - Replace the auto-generated entitlements with `Jeff/Jeff.entitlements`.
-5. Set the project's `Info.plist` file to `Jeff/Info.plist`.
-6. Set deployment target to macOS 14.0.
+This repo is a **source-only scaffold**, not a build-and-run app. There is
+deliberately no `.xcodeproj` checked in (Xcode projects don't merge cleanly and
+encode developer-team / signing settings that are personal to each machine).
+You generate the project locally on your Mac.
 
-### Add MLX (for the local LLM)
+### Done in this repo
 
-In **File → Add Package Dependencies…** add:
+- All Swift sources for models, services, and SwiftUI views.
+- `Info.plist` with mic / camera / speech usage strings.
+- `Jeff.entitlements` with sandbox + device entitlements; network capabilities
+  explicitly disabled to enforce the offline guarantee.
+- `Package.swift` exposing the non-UI core as `JeffCore` for CI.
+- Energy-based VAD that's drop-in replaceable with Silero / WebRTC.
+- `MLXService` guarded by `#if canImport(MLXLLM)` so the project compiles
+  before the MLX Swift packages are added.
 
-- `https://github.com/ml-explore/mlx-swift` (products: `MLX`, `MLXNN`,
-  `MLXOptimizers`, `MLXRandom`)
-- `https://github.com/ml-explore/mlx-swift-examples` (product: `MLXLLM`,
-  `MLXLMCommon`)
+### You still need to do (~30 min on macOS)
 
-`MLXService.swift` is guarded by `#if canImport(MLXLLM)`, so it builds without
-those packages and throws `mlxNotAvailable` at runtime. Once the packages are
-linked, the real generation path activates automatically.
+1. **Create the Xcode project.** File → New → Project → macOS App, name it
+   `Jeff`, SwiftUI, Swift. Delete the auto-generated `JeffApp.swift` and
+   `ContentView.swift`.
+2. **Add the source tree.** Right-click the project → Add Files to "Jeff"…
+   → pick the `Jeff/` folder from this repo (folder reference is fine).
+3. **Wire Info.plist + entitlements.** In the target's Build Settings set
+   `INFOPLIST_FILE = Jeff/Info.plist` and `CODE_SIGN_ENTITLEMENTS =
+   Jeff/Jeff.entitlements`. Set the deployment target to macOS 14.0.
+4. **Capabilities.** In Signing & Capabilities add **App Sandbox** (Camera,
+   Audio Input, User Selected File) and **Hardened Runtime**. Set your team.
+5. **Add MLX packages.** File → Add Package Dependencies…
+   - `https://github.com/ml-explore/mlx-swift` — link `MLX`, `MLXNN`,
+     `MLXOptimizers`, `MLXRandom`.
+   - `https://github.com/ml-explore/mlx-swift-examples` — link `MLXLLM`,
+     `MLXLMCommon`.
+6. **Download model weights.**
+   ```bash
+   mkdir -p ~/Models/gemma-4-4b-mlx
+   huggingface-cli download mlx-community/gemma-4-4b-it-4bit \
+     --local-dir ~/Models/gemma-4-4b-mlx
+   ```
+   Then in Jeff: Settings → Model → choose that folder.
+7. **First launch.** macOS will prompt for Microphone, Camera, and Speech
+   Recognition. All on-device.
 
-### Get the model weights
+### Likely small fixes once it actually builds
 
-Download a Gemma 4 4B MLX model (or any other MLX-compatible chat model) into a
-folder you control, then point **Settings → Model → Model path** at it.
+- The MLX call sites in `Jeff/Services/MLXService.swift`
+  (`ModelConfiguration(directory:)`, `LLMModelFactory.shared.loadContainer`,
+  `Chat.Message`, the `MLXLMCommon.generate` stream loop) target a recent
+  shape of `mlx-swift-examples`, but that API has been moving. Expect to
+  rename a few symbols.
+- A handful of SwiftUI 14 deprecation warnings (single-arg `.onChange`).
+  Non-blocking.
+- These sources have **not been compiled** (this scaffold was authored on
+  Linux). There may be small Swift 5.9 / actor-isolation issues to clean up
+  on first build.
 
-```bash
-# example, using huggingface-cli
-mkdir -p ~/Models/gemma-4-4b-mlx
-huggingface-cli download mlx-community/gemma-4-4b-it-4bit --local-dir ~/Models/gemma-4-4b-mlx
-```
+### Behavioral gaps still to close
 
-### First launch permissions
-
-On first launch macOS will prompt for:
-
-- **Microphone** — VAD + speech capture
-- **Camera** — frame capture for visual context
-- **Speech Recognition** — `SFSpeechRecognizer` (on-device)
-- **Accessibility** — only if you use global hotkeys outside the app's window
-
-All processing is local. Confirm by running Little Snitch or Lulu — Jeff makes
-zero network calls.
+- **VAD:** energy heuristic will trip on background noise. Production wants
+  Silero or WebRTC — only `VADService.evaluate(buffer:)` needs new internals.
+- **Push-to-talk:** currently a momentary unmute trigger. True press-and-hold
+  needs an `NSEvent.addGlobalMonitorForEvents` keyUp listener.
+- **Privacy verification:** confirm zero network egress with Little Snitch or
+  Lulu before declaring v1 done.
 
 ## Pipeline
 
@@ -93,20 +109,8 @@ mic → AudioCaptureService → VADService
                           TTSService.speak(answer) + ConversationStore.append
 ```
 
-## Status
+## Out of scope for v1
 
-This is a v1 scaffold of the spec in PRODUCT_SPEC.md. Pieces that need work
-before you can ship:
-
-- [ ] Wire the MLX Swift packages and verify generation against a real model.
-- [ ] Replace the energy-based VAD with Silero or WebRTC for fewer false
-      positives in noisy environments.
-- [ ] Push-to-talk hotkey is currently a momentary unmute trigger; if you want
-      true press-and-hold semantics, add an `NSEvent.addGlobalMonitorForEvents`
-      keyUp listener.
-- [ ] Exercise the full pipeline end-to-end on an M-series Mac and tune the
-      response-latency budget.
-
-Out of scope for v1 (per spec): iOS, wake word, internet search, persistent
-memory, multilingual, file/screen awareness, multi-user, noise cancellation,
-per-app muting.
+Per spec: iOS, wake word ("Hey Jeff"), internet search, persistent memory,
+multilingual, file/screen awareness, multi-user, noise cancellation, per-app
+muting. See `PRODUCT_SPEC.md` for the full list.
