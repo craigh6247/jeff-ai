@@ -231,6 +231,64 @@ always-on-top overlay, multi-window support.
 
 ---
 
+## Milestone 5 — Live recognition overlay
+
+### Goal
+
+The camera preview becomes a live, labeled view: bounding boxes around
+detected people / objects with their names overlaid, updated in real
+time. Same gallery as M1 — anything Jeff knows gets labeled, anything
+he doesn't gets a "?" box that the introduce-yourself flow can resolve.
+
+### Features
+
+- **Detection + tracking.** Per-frame: cheap detection (Vision's face
+  detector or saliency for objects) feeds a tracker
+  (`VNTrackObjectRequest` or equivalent) so identity persists across
+  frames between heavier embedding passes. Embeddings re-run only every
+  N frames or on significant pose change.
+- **Labeled overlay.** SwiftUI / Core Animation layer over
+  `CameraPreviewView` drawing rounded boxes + name pills. Boxes
+  smoothed to avoid jitter.
+- **Confidence treatment.** High confidence → name shown plain; low
+  confidence → name with a "?" suffix; unrecognized → "?" only, with a
+  subtle hint that voice-enrolling will name them.
+- **Performance budget.** Target 15–30 fps for the overlay layer (not
+  necessarily for embedding) on M2. Tracker handles the in-between
+  frames so we don't pay embedding cost per frame.
+- **Toggle.** Settings → Camera → "Show live recognition overlay"
+  on/off. Off by default until the perf budget is verified.
+- **Privacy parity.** Overlay sampling pauses when Jeff is muted,
+  camera preview is hidden, or screen is locked (same gates as M3).
+
+### Acceptance criteria
+
+- With three enrolled people in frame, all three are labeled and the
+  labels stay correct as they move.
+- An unenrolled person shows a "?" box; voice-enrolling them updates
+  the label live without a restart.
+- Overlay frame rate stays at ≥15 fps on an M2 with a 1080p webcam.
+- Toggling the overlay off shuts down the detection/tracker work
+  within one frame interval.
+
+### Depends on
+
+M1 (gallery + embeddings) and the camera infrastructure already in
+place. Borrows M3's privacy gating but doesn't otherwise depend on it
+— the overlay loop runs at its own rate independent of the
+prompt-context sampling.
+
+### Open questions
+
+- Whether to share one detection pass between M3 (prompt context) and
+  M5 (overlay) or keep them as independent loops at different rates.
+  Sharing is more efficient; independent loops are simpler.
+- Whether long-distance / partial-occlusion re-identification belongs
+  here or in a follow-up. v1 of M5 can drop tracking when the subject
+  leaves frame and re-acquire by embedding when they return.
+
+---
+
 ## Cross-cutting / later
 
 - **Encryption pass.** Wrap gallery + any persisted transcript / activity
