@@ -29,17 +29,17 @@ public final class PipelineCoordinator: ObservableObject {
 
     private var settingsCancellable: AnyCancellable?
 
-    public init(store: ConversationStore = ConversationStore(),
-                settingsStore: SettingsStore = SettingsStore()) {
-        self.store = store
-        self.settingsStore = settingsStore
+    public init(store: ConversationStore? = nil,
+                settingsStore: SettingsStore? = nil) {
+        self.store = store ?? ConversationStore()
+        self.settingsStore = settingsStore ?? SettingsStore()
 
         audio.delegate = vad
         vad.delegate = self
         tts.delegate = self
 
-        applySettings(settingsStore.settings)
-        settingsCancellable = settingsStore.$settings.sink { [weak self] new in
+        applySettings(self.settingsStore.settings)
+        settingsCancellable = self.settingsStore.$settings.sink { [weak self] new in
             self?.applySettings(new)
         }
 
