@@ -30,15 +30,15 @@ actor MLXChat {
     #if canImport(MLXLLM) && canImport(MLXLMCommon)
     private var container: ModelContainer?
     #endif
-    private var loadedID: String?
+    private var loadedDirectory: URL?
 
-    func load(modelID: String) async throws {
-        if loadedID == modelID { return }
+    func load(directory: URL) async throws {
+        if loadedDirectory == directory { return }
         #if canImport(MLXLLM) && canImport(MLXLMCommon)
-        let configuration = ModelConfiguration(id: modelID)
+        let configuration = ModelConfiguration(directory: directory)
         let factory = LLMModelFactory.shared
         container = try await factory.loadContainer(configuration: configuration)
-        loadedID = modelID
+        loadedDirectory = directory
         #else
         throw MLXChatError.packagesNotInstalled
         #endif

@@ -62,8 +62,13 @@ struct ContentView: View {
             Text("Local MLX chat. Type below to start.")
                 .foregroundStyle(.secondary)
                 .font(.callout)
-            if !chat.modelReady {
-                Text("Model: \(chat.modelID)")
+            if let modelID = chat.activeModelID {
+                Text("Model: \(modelID)")
+                    .foregroundStyle(.tertiary)
+                    .font(.caption)
+                    .padding(.top, 4)
+            } else {
+                Text("No model selected — open Settings → Models (⌘,)")
                     .foregroundStyle(.tertiary)
                     .font(.caption)
                     .padding(.top, 4)
@@ -125,7 +130,11 @@ private struct MessageRow: View {
 }
 
 #Preview {
-    ContentView()
+    let s = SettingsStore()
+    let m = ModelsStore(settings: s)
+    return ContentView()
         .environmentObject(ChatViewModel())
+        .environmentObject(s)
+        .environmentObject(m)
         .frame(width: 600, height: 500)
 }
